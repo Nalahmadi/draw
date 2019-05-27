@@ -1,0 +1,47 @@
+
+
+
+
+
+    
+    -- The @RequestMapping annotation
+
+    // @RequestMapping : Tells Spring framework that we want this method to be sort of exposed as an endpoint
+    // value = "/payment/rakuten/payment.html" : this method will get triggered if we hit the url /payment/rakuten/payment.html
+    // produces = MediaType.TEXT_HTML_VALUE : this method will return a response in a form of html page (ModelAndView)
+    // method = RequestMethod.GET : This method will get triggered only if we send a HTTP Get Request to the matching url
+
+
+    -- Method parameters : 
+
+    // @Valid @ModelAttribute PaymentRedirectRequest paymentRedirectRequest : this contains all the parameters sent with the request in a PaymentRedirectRequest object
+    // RedirectAttributes attributes : this is a way to pass attributes to redirect target.
+    
+    @RequestMapping(value = "/payment/rakuten/payment.html", produces = MediaType.TEXT_HTML_VALUE, method = RequestMethod.GET)
+    public ModelAndView payment(@Valid @ModelAttribute PaymentRedirectRequest paymentRedirectRequest, Model model,
+                                RedirectAttributes attributes) {
+
+        //go to not found if paymentRef is invalid
+        //PaymentResult paymentResult = paymentService.getTransactionStatus(paymentRedirectRequest.getPaymentRef());
+
+        // Some application logic business to get the transaction status based on the ref 
+        PaymentResult paymentResult = paymentService.getTransactionStatus(paymentRedirectRequest.getPRef());
+
+        // Here, there is a call to checkStatus method based on the attributes (from the method parameters) and the paymentResult returned from the previous call to the 'paymentService' 
+        Optional<ModelAndView> redirectOptional = checkStatus(paymentResult, attributes);
+
+        // if the result of the checkStatus method call contains a value (Not null), we'll return the ModelAndView  Object returned by the method
+        if (redirectOptional.isPresent()) {
+            return redirectOptional.get();
+        }
+
+        // Otherwise, we will populate the Model object (from the method parameter)  with the necessary attributes we want to access in the html page we will go to 
+        model.addAttribute("paymentRedirectRequest", paymentRedirectRequest);
+        //attributes.addAttribute("paymentRef", paymentRedirectRequest.getPaymentRef());
+        attributes.addAttribute("pRef", urlParamEncryptor.encrypt(paymentRedirectRequest.getPRef()));
+        model.addAttribute("paymentConfig", paymentService.getPaymentConfig(paymentResult.getPaymentTrx()));
+        model.addAttribute("paymentResult", paymentResult);
+
+        // We give the path for the page we wish to display to the user, and all the attributes contained in the 'model' object will be available in that page
+        return new ModelAndView("/payment/rakuten/payment");
+    }
